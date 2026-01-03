@@ -187,6 +187,7 @@ public class CentrifugeBlockEntity extends KineticBlockEntity implements IHaveGo
 	}
 
 	private List<Recipe<?>> getRecipes() {
+
 		List<Recipe<?>> list = RecipeFinder.get(centrifugationRecipesKey, level, this::matchStaticFilters);
 
 		return list.stream()
@@ -243,41 +244,17 @@ public class CentrifugeBlockEntity extends KineticBlockEntity implements IHaveGo
 		if (getBasins() < 4)
 			return;
 
-		if (timer > 0) {
-			if (getSpeed() == 0) {
-				timer = 0;
-				lastRecipe = null;
-			}
-
-			if (lastRecipe != null && Mth.abs(getSpeed()) < lastRecipe.minimalRPM) {
-				timer = lastRecipe.getProcessingDuration();
-			}
-
-			if (lastRecipe != null) {
-				if (Mth.abs(getSpeed()) >= lastRecipe.minimalRPM) {
-					timer -= getProcessingSpeed();
-
-					if (level.isClientSide) {
-						return;
-					}
-					if (timer <= 0)
-						process();
-					return;
-				}
-			}
-		}
-
 		if (inputInv.isEmpty() && inputTank.isEmpty())
 			return;
 
-		if (lastRecipe == null || !CentrifugationRecipe.match(this, lastRecipe)) {
-
+		// 没有配方则搜索配方
+		if (lastRecipe == null) {
+			boolean found = false;
 			for (int i = 0; i < inputInv.getSlots(); i++) {
 				Optional<CentrifugationRecipe> assemblyRecipe = SequencedAssemblyRecipe.
 						getRecipe(level, inputInv.getStackInSlot(i),
 								VintageRecipes.CENTRIFUGATION.getType(), CentrifugationRecipe.class);
 				if (assemblyRecipe.isPresent()) {
-					boolean found = true;
 
 					for (Ingredient cur : assemblyRecipe.get().getIngredients()) {
 						boolean find = false;
@@ -288,40 +265,73 @@ public class CentrifugeBlockEntity extends KineticBlockEntity implements IHaveGo
 								break;
 							}
 						}
-
+						if (!find) {
+							found = false;
+							break;
+						}
 						found = find;
 					}
 
 					if (found) {
 						lastRecipe = assemblyRecipe.get();
-						timer = lastRecipe.getProcessingDuration();
-						if (timer == 0) timer = 100;
+						timer = lastRecipe.getProcessingDuration() * 16;
+						if (timer == 0) timer = 1600;
 						lastRecipeIsAssembly = true;
 
 						sendData();
-						return;
+						break;
 					}
 				}
 			}
 
-			lastRecipeIsAssembly = false;
+			if (!found) {
+				lastRecipeIsAssembly = false;
 
-			List<Recipe<?>> recipes = getRecipes();
-			if (!recipes.isEmpty()) {
-				lastRecipe = (CentrifugationRecipe) recipes.get(0);
-				timer = lastRecipe.getProcessingDuration();
-				sendData();
+				List<Recipe<?>> recipes = getRecipes();
+				if (!recipes.isEmpty()) {
+					lastRecipe = (CentrifugationRecipe) recipes.get(0);
+					timer = lastRecipe.getProcessingDuration() * 16;
+					sendData();
+				} else {
+					timer = 1600;
+					sendData();
+				}
+			}
+		}
+
+		// 工作计时
+		if (timer > 0) {
+			if (getSpeed() == 0) {
+				timer = 0;
+				lastRecipe = null;
 				return;
 			}
 
-			timer = 100;
-			sendData();
-			return;
-		}
+			if (Mth.abs(getSpeed()) < lastRecipe.minimalRPM) {
+				timer = lastRecipe.getProcessingDuration() * 16;
+			} else {
+				timer -= getProcessingSpeed();
 
-		timer = lastRecipe.getProcessingDuration();
-		if (timer == 0) timer = 100;
-		sendData();
+				if (level.isClientSide()) {
+					return;
+				}
+
+				if (timer <= 0) {
+					// 计时完成，执行配方，如果能重复配方，则重置计时器
+					process();
+					if (CentrifugationRecipe.match(this, lastRecipe)) {
+						timer = lastRecipe.getProcessingDuration() * 16;
+						if (timer == 0) timer = 1600;
+					} else {
+						lastRecipe = null;
+						timer = 0;
+					}
+				}
+			}
+		} else {
+			// 防御性编程
+			lastRecipe = null;
+		}
 	}
 
 	@Override
@@ -454,6 +464,7 @@ public class CentrifugeBlockEntity extends KineticBlockEntity implements IHaveGo
 	}
 
 	private void process() {
+		// 执行配方，如果配方不满足则重新搜索
 		if (lastRecipe == null || !CentrifugationRecipe.match(this, lastRecipe)) {
 			boolean found = false;
 			for (int i = 0; i < inputInv.getSlots(); i++) {
@@ -488,7 +499,8 @@ public class CentrifugeBlockEntity extends KineticBlockEntity implements IHaveGo
 	}
 
 	public int getProcessingSpeed() {
-		return Mth.clamp((int) Math.abs(getSpeed() / 16f), 1, 512);
+		float speed = Math.min(Math.abs(getSpeed()), 1024f) / 256;
+		return (int) (speed * speed * 16);
 	}
 
 	private class CentrifugeTanksHandler extends CombinedTankWrapper {

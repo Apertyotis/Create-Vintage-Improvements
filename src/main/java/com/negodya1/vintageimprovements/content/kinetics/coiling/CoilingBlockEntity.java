@@ -153,27 +153,32 @@ public class CoilingBlockEntity extends KineticBlockEntity {
 	public void tick() {
 		super.tick();
 
+		// 速度为0时停止
 		if (getSpeed() == 0)
 			return;
+		// 搜索配方
 		if (inventory.remainingTime == -1) {
 			if (!inventory.isEmpty() && !inventory.appliedRecipe)
 				start(inventory.getStackInSlot(0));
-			return;
 		}
 
-		if (inventory.isEmpty()) findEntities();
+		// 没有任务，结束
+		if (inventory.remainingTime == -1) return;
 
-		float processingSpeed = Mth.clamp(Math.abs(getSpeed()) / 24, 1, 128);
+		// 不应该主动吸取掉落物
+		//if (inventory.isEmpty()) findEntities();
+
+		float processingSpeed = Math.abs(getSpeed()) / 256f;
 		inventory.remainingTime -= processingSpeed;
 
-		if (inventory.remainingTime < 5 && !inventory.appliedRecipe) {
+		if (inventory.remainingTime < 3 && !inventory.appliedRecipe) {
 			if (level.isClientSide && !isVirtual())
 				return;
 			playEvent = inventory.getStackInSlot(0);
 			applyRecipe();
 			inventory.appliedRecipe = true;
-			inventory.recipeDuration = 20;
-			inventory.remainingTime = 20;
+			inventory.recipeDuration = 2;
+			inventory.remainingTime = 2;
 			sendData();
 			return;
 		}

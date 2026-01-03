@@ -197,37 +197,27 @@ public class LatheRotatingBlockEntity extends KineticBlockEntity implements IHav
 	public void tick() {
 		super.tick();
 
+		// 输入空时重置状态
 		if (inputInv.isEmpty()) {
 			lastRecipe = null;
 			timer = 0;
+			return;
 		}
 
+		// 速度不满足要求时停止
 		if (getSpeed() == 0 || getSlaveSpeed() == 0)
 			return;
 
 		if (Math.abs(getSpeed()) < IRotate.SpeedLevel.FAST.getSpeedValue()) return;
 		if (Math.abs(getSlaveSpeed()) < IRotate.SpeedLevel.MEDIUM.getSpeedValue()) return;
 
+		// 输出满时停止
 		for (int i = 0; i < outputInv.getSlots(); i++)
 			if (outputInv.getStackInSlot(i)
 					.getCount() == outputInv.getSlotLimit(i))
 				return;
 
-		if (timer > 0 && lastRecipe != null) {
-			timer -= getProcessingSpeed();
-
-			if (timer <= 0) {
-				if (level.isClientSide) {
-					lastRecipe = null;
-					return;
-				}
-				process();
-			}
-			return;
-		}
-
-		if (inputInv.isEmpty()) return;
-
+		// 搜索配方，现在不单独消耗tick
 		if (lastRecipe == null) {
 			Optional<TurningRecipe> recipe = getRecipe();
 
@@ -240,6 +230,19 @@ public class LatheRotatingBlockEntity extends KineticBlockEntity implements IHav
 					initialTimer = 200;
 				}
 				sendData();
+			}
+		}
+
+		// 配方倒计时
+		if (timer > 0 && lastRecipe != null) {
+			timer -= getProcessingSpeed();
+
+			if (timer <= 0) {
+				if (level.isClientSide) {
+					lastRecipe = null;
+					return;
+				}
+				process();
 			}
 		}
 	}
@@ -312,7 +315,7 @@ public class LatheRotatingBlockEntity extends KineticBlockEntity implements IHav
 	}
 
 	public float getProcessingSpeed() {
-		return 1 + Mth.clamp((int) ((Math.abs(getSpeed()) - IRotate.SpeedLevel.FAST.getSpeedValue()) / (256 - IRotate.SpeedLevel.FAST.getSpeedValue())) / 2f, .0f, 0.5f)
+		return Mth.clamp((int) ((Math.abs(getSpeed()) - IRotate.SpeedLevel.FAST.getSpeedValue()) / (256 - IRotate.SpeedLevel.FAST.getSpeedValue())) / 2f, .0f, 0.5f)
 				+ Mth.clamp((int) ((Math.abs(getSlaveSpeed()) - IRotate.SpeedLevel.MEDIUM.getSpeedValue()) / (256 - IRotate.SpeedLevel.MEDIUM.getSpeedValue())) / 2f, .0f, 0.5f);
 	}
 

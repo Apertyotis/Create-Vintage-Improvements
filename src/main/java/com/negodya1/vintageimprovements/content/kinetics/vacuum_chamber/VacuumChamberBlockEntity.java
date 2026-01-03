@@ -160,28 +160,37 @@ public class VacuumChamberBlockEntity extends BasinOperatingBlockEntity {
 	public void tick() {
 		super.tick();
 
+		// 每次重新抬起时，进入停止状态，并计划检查一遍配方
 		if (runningTicks >= 40) {
 			running = false;
 			runningTicks = 0;
+			// 在下次基类behaviour::tick时搜索配方，因此耗时1tick
 			basinChecker.scheduleUpdate();
 			return;
 		}
 
 		float speed = Math.abs(getSpeed());
-		if (running && level != null) {
-			if (level.isClientSide && runningTicks == 20)
+		if (running && level != null && speed > 0) {
+			// 未工作时，动画计时器增加，抬头和落下的动画需要单独占1秒
+			if (runningTicks != 20) {
+				runningTicks++;
+				return;
+			}
+
+			// 正在工作，播放粒子效果
+			if (level.isClientSide)
 				renderParticles();
 
-			if ((!level.isClientSide || isVirtual()) && runningTicks == 20) {
+			// 正在工作，包含配方时间计算和配方倒计时
+			if (!level.isClientSide || isVirtual()) {
+				// 计算配方时间，不要单独消耗tick
 				if (processingTicks < 0) {
-					float recipeSpeed = 1;
+					int duration = 20;
 					if (currentRecipe instanceof ProcessingRecipe) {
 						int t = ((ProcessingRecipe<?>) currentRecipe).getProcessingDuration();
-						if (t != 0)
-							recipeSpeed = t / 100f;
+						if (t != 0) duration = t;
 					}
-
-					processingTicks = Mth.clamp((Mth.log2((int) (512 / speed))) * Mth.ceil(recipeSpeed * 15) + 1, 1, 512);
+					processingTicks = Math.max(duration * Mth.ceillog2((int) (512 / speed)), 1);
 
 					Optional<BasinBlockEntity> basin = getBasin();
 					if (basin.isPresent()) {
@@ -194,20 +203,20 @@ public class VacuumChamberBlockEntity extends BasinOperatingBlockEntity {
 							level.playSound(null, worldPosition, SoundEvents.BUBBLE_COLUMN_WHIRLPOOL_AMBIENT,
 								SoundSource.BLOCKS, .75f, speed < 65 ? .75f : 1.5f);
 					}
+				}
 
-				} else {
-					processingTicks--;
-					if (processingTicks == 0) {
-						runningTicks++;
-						processingTicks = -1;
-						applyBasinRecipe();
-						sendData();
-					}
+				// 配方倒计时
+				processingTicks--;
+				if (processingTicks == 0) {
+					// 尝试抬头，如果后续判断配方不能继续执行则会继续剩下的19tick动画
+					// 减少的这1tick动画正好和重新搜索配方时间抵消
+					runningTicks++;
+					processingTicks = -1;
+					// 执行配方结果，如果能继续，则runningTicks重置回20
+					applyBasinRecipe();
+					sendData();
 				}
 			}
-
-			if (runningTicks != 20)
-				runningTicks++;
 		}
 	}
 

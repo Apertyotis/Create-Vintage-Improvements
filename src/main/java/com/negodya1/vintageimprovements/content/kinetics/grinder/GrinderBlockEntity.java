@@ -168,39 +168,49 @@ public class GrinderBlockEntity extends KineticBlockEntity implements IHaveGoggl
 	public void tick() {
 		super.tick();
 
+		// 速度为0时停止
 		if (getSpeed() == 0)
 			return;
+
+		// 搜索配方
 		if (inventory.remainingTime == -1) {
 			if (!inventory.isEmpty() && !inventory.appliedRecipe)
 				start(inventory.getStackInSlot(0));
-			return;
 		}
 
-		if (inventory.isEmpty()) findEntities();
+		// 没有任务，结束
+		if (inventory.remainingTime == -1) return;
 
-		float processingSpeed = Mth.clamp(Math.abs(getSpeed()) / 24, 1, 128);
-		inventory.remainingTime -= processingSpeed;
+		// 不应该主动吸取掉落物
+		//if (inventory.isEmpty()) findEntities();
 
-		if (inventory.remainingTime > 0)
+		// 配方倒计时
+		inventory.remainingTime --;
+
+		// 播放磨制粒子
+		if (inventory.remainingTime > 0 && level.isClientSide())
 			spawnParticles(inventory.getStackInSlot(0));
 
-		if (inventory.remainingTime < 5 && !inventory.appliedRecipe) {
+		// 物品移动完前半程，转化为产物
+		if (inventory.remainingTime < 3 && !inventory.appliedRecipe) {
 			if (level.isClientSide && !isVirtual())
 				return;
 			playEvent = inventory.getStackInSlot(0);
 			applyRecipe();
 			inventory.appliedRecipe = true;
-			inventory.recipeDuration = 20;
-			inventory.remainingTime = 20;
+			inventory.recipeDuration = 2;
+			inventory.remainingTime = 2;
 			sendData();
 			return;
 		}
 
-		Vec3 itemMovement = getItemMovementVec();
-		Direction itemMovementFacing = Direction.getNearest(itemMovement.x, itemMovement.y, itemMovement.z);
 		if (inventory.remainingTime > 0)
 			return;
 		inventory.remainingTime = 0;
+
+		// 物品移动完后半程
+		Vec3 itemMovement = getItemMovementVec();
+		Direction itemMovementFacing = Direction.getNearest(itemMovement.x, itemMovement.y, itemMovement.z);
 
 		for (int slot = 0; slot < inventory.getSlots(); slot++) {
 			ItemStack stack = inventory.getStackInSlot(slot);

@@ -156,58 +156,62 @@ public class VibratingTableBlockEntity extends KineticBlockEntity {
 
 		if (getSpeed() == 0)
 			return;
+
+		// 输出是否已满
 		for (int i = 0; i < outputInv.getSlots(); i++)
 			if (outputInv.getStackInSlot(i)
 					.getCount() == outputInv.getSlotLimit(i))
 				return;
 
-		if (timer > 0) {
-			timer -= getProcessingSpeed();
-
-			if (level.isClientSide) {
-				spawnParticles();
-				return;
-			}
-			if (timer <= 0)
-				process();
-			return;
-		}
-
-		if (inputInv.getStackInSlot(0)
-				.isEmpty())
+		// 唯一输入槽是否为空
+		if (inputInv.getStackInSlot(0).isEmpty())
 			return;
 
-		RecipeWrapper inventoryIn = new RecipeWrapper(inputInv);
-		if (lastRecipe == null || (!lastRecipe.matches(inventoryIn, level))) {
+		if (lastRecipe == null) {
+			RecipeWrapper inventoryIn = new RecipeWrapper(inputInv);
 			Optional<VibratingRecipe> assemblyRecipe = SequencedAssemblyRecipe.getRecipe(level, inventoryIn,
 					VintageRecipes.VIBRATING.getType(), VibratingRecipe.class);
 			if (assemblyRecipe.isPresent()) {
 				lastRecipe = assemblyRecipe.get();
-				timer = lastRecipe.getProcessingDuration();
-				if (timer == 0) timer = 100;
+				timer = lastRecipe.getProcessingDuration() * 16;
+				if (timer == 0) timer = 1600;
 				lastRecipeIsAssembly = true;
-
-				sendData();
-				return;
-			}
-
-			lastRecipeIsAssembly = false;
-
-			Optional<VibratingRecipe> recipe = VintageRecipes.VIBRATING.find(inventoryIn, level);
-			if (!recipe.isPresent()) {
-				timer = 100;
-				sendData();
 			} else {
-				lastRecipe = recipe.get();
-				timer = lastRecipe.getProcessingDuration();
-				sendData();
+				lastRecipeIsAssembly = false;
+				Optional<VibratingRecipe> recipe = VintageRecipes.VIBRATING.find(inventoryIn, level);
+				if (!recipe.isPresent()) {
+					timer = 1600;
+				} else {
+					lastRecipe = recipe.get();
+					timer = lastRecipe.getProcessingDuration() * 16;
+				}
 			}
-			return;
+			sendData();
 		}
 
-		timer = lastRecipe.getProcessingDuration();
-		if (timer == 0) timer = 100;
-		sendData();
+		if (timer > 0) {
+			timer -= getProcessingSpeed();
+
+			if (level.isClientSide()) {
+				spawnParticles();
+				return;
+			}
+			if (timer <= 0) {
+				// 倒计时结束，执行配方，如果能继续配方则直接重置计时器
+				process();
+				RecipeWrapper inventoryIn = new RecipeWrapper(inputInv);
+				if (lastRecipe.matches(inventoryIn, level)) {
+					timer = lastRecipe.getProcessingDuration() * 16;
+					if (timer == 0) timer = 1600;
+				} else {
+					lastRecipe = null;
+					timer = 0;
+				}
+			}
+		} else {
+			// 防御性编程
+			lastRecipe = null;
+		}
 	}
 
 	@Override
