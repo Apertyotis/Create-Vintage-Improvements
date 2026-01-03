@@ -56,6 +56,8 @@ public class VacuumizingCategory extends BasinCategory {
 			size -= r.getSecondaryFluidInputs() > -1 ? 1 : 0;
 		}
 		int xOffset = size < 3 ? (3 - size) * 19 / 2 : 0;
+		// 盆内原料达到4以上时，偏移半格
+		xOffset -= size >= 4 ? 8 : 0;
 		int i = 0;
 
 		for (Pair<Ingredient, MutableInt> pair : condensedIngredients) {
@@ -67,7 +69,7 @@ public class VacuumizingCategory extends BasinCategory {
 			}
 
 			builder
-					.addSlot(RecipeIngredientRole.INPUT, 17 + xOffset + (i % 3) * 19, 52 - (i / 3) * 19)
+					.addSlot(RecipeIngredientRole.INPUT, 17 + xOffset + (i % 4) * 19, 52 - (i / 4) * 19)
 					.setBackground(getRenderedSlot(), -1, -1)
 					.addItemStacks(stacks);
 			i++;
@@ -84,7 +86,7 @@ public class VacuumizingCategory extends BasinCategory {
 						.addTooltipCallback(VintageRecipeUtil.addTooltip("jei.text.secondary_fluid_ingredient"));
 			else {
 				builder
-						.addSlot(RecipeIngredientRole.INPUT, 17 + xOffset + (i % 3) * 19, 52 - (i / 3) * 19)
+						.addSlot(RecipeIngredientRole.INPUT, 17 + xOffset + (i % 4) * 19, 52 - (i / 4) * 19)
 						.setBackground(getRenderedSlot(), -1, -1)
 						.addIngredients(ForgeTypes.FLUID_STACK, withImprovedVisibility(fluidIngredient.getMatchingFluidStacks()))
 						.addTooltipCallback(addFluidTooltip(fluidIngredient.getRequiredAmount()));
