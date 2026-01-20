@@ -248,7 +248,7 @@ public class CentrifugeBlockEntity extends KineticBlockEntity implements IHaveGo
 			return;
 
 		// 没有配方则搜索配方
-		if (lastRecipe == null) {
+		if (timer <= 0 && lastRecipe == null) {
 			boolean found = false;
 			for (int i = 0; i < inputInv.getSlots(); i++) {
 				Optional<CentrifugationRecipe> assemblyRecipe = SequencedAssemblyRecipe.
@@ -307,7 +307,7 @@ public class CentrifugeBlockEntity extends KineticBlockEntity implements IHaveGo
 				return;
 			}
 
-			if (Mth.abs(getSpeed()) < lastRecipe.minimalRPM) {
+			if (lastRecipe != null && Mth.abs(getSpeed()) < lastRecipe.minimalRPM) {
 				timer = lastRecipe.getProcessingDuration() * 16;
 			} else {
 				timer -= getProcessingSpeed();
@@ -319,7 +319,7 @@ public class CentrifugeBlockEntity extends KineticBlockEntity implements IHaveGo
 				if (timer <= 0) {
 					// 计时完成，执行配方，如果能重复配方，则重置计时器
 					process();
-					if (CentrifugationRecipe.match(this, lastRecipe)) {
+					if (lastRecipe != null && CentrifugationRecipe.match(this, lastRecipe)) {
 						timer = lastRecipe.getProcessingDuration() * 16;
 						if (timer == 0) timer = 1600;
 					} else {
