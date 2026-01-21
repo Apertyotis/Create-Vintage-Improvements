@@ -1,7 +1,9 @@
 package com.negodya1.vintageimprovements.compat.jei.category.assemblies;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.negodya1.vintageimprovements.compat.jei.VintageRecipeUtil;
 import com.negodya1.vintageimprovements.compat.jei.category.animations.AnimatedVacuumChamber;
+import com.negodya1.vintageimprovements.content.kinetics.vacuum_chamber.PressurizingRecipe;
 import com.simibubi.create.compat.jei.category.CreateRecipeCategory;
 import com.simibubi.create.compat.jei.category.animations.AnimatedBlazeBurner;
 import com.simibubi.create.compat.jei.category.sequencedAssembly.SequencedAssemblySubCategory;
@@ -14,6 +16,8 @@ import mezz.jei.api.gui.builder.IRecipeSlotBuilder;
 import mezz.jei.api.recipe.IFocusGroup;
 import mezz.jei.api.recipe.RecipeIngredientRole;
 import net.minecraft.client.gui.GuiGraphics;
+
+import java.util.List;
 
 import static com.simibubi.create.compat.jei.category.CreateRecipeCategory.getRenderedSlot;
 
@@ -40,12 +44,16 @@ public class AssemblyPressurizing extends SequencedAssemblySubCategory {
             offset++;
         }
 
-        for (FluidIngredient fluidIngredient : recipe.getRecipe().getFluidIngredients()) {
-            builder
+        List<FluidIngredient> ingredients = recipe.getRecipe().getFluidIngredients();
+        for (int i = 0; i < ingredients.size(); i++) {
+            IRecipeSlotBuilder slotBuilder = builder
                     .addSlot(RecipeIngredientRole.INPUT, x + 4, 15 + offset * 16)
                     .setBackground(CreateRecipeCategory.getRenderedSlot(), -1, -1)
-                    .addIngredients(ForgeTypes.FLUID_STACK, CreateRecipeCategory.withImprovedVisibility(fluidIngredient.getMatchingFluidStacks()))
-                    .addTooltipCallback(CreateRecipeCategory.addFluidTooltip(fluidIngredient.getRequiredAmount()));
+                    .addIngredients(ForgeTypes.FLUID_STACK, CreateRecipeCategory.withImprovedVisibility(ingredients.get(i).getMatchingFluidStacks()))
+                    .addTooltipCallback(CreateRecipeCategory.addFluidTooltip(ingredients.get(i).getRequiredAmount()));
+            if (recipe.getRecipe() instanceof PressurizingRecipe precipe && precipe.getSecondaryFluidInputs() == i) {
+                slotBuilder.addTooltipCallback(VintageRecipeUtil.addTooltip("jei.text.secondary_fluid_ingredient"));
+            }
         }
     }
 
