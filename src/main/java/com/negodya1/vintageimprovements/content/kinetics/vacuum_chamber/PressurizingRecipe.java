@@ -5,10 +5,12 @@ import com.negodya1.vintageimprovements.VintageBlocks;
 import com.negodya1.vintageimprovements.VintageLang;
 import com.negodya1.vintageimprovements.VintageRecipes;
 import com.negodya1.vintageimprovements.compat.jei.category.assemblies.AssemblyPressurizing;
+import com.simibubi.create.AllItems;
 import com.simibubi.create.compat.jei.category.sequencedAssembly.SequencedAssemblySubCategory;
 import com.simibubi.create.content.processing.basin.BasinBlockEntity;
 import com.simibubi.create.content.processing.basin.BasinRecipe;
 import com.simibubi.create.content.processing.burner.BlazeBurnerBlock;
+import com.simibubi.create.content.processing.recipe.ProcessingRecipe;
 import com.simibubi.create.content.processing.recipe.ProcessingRecipeBuilder.ProcessingRecipeParams;
 import com.simibubi.create.content.processing.sequenced.IAssemblyRecipe;
 import com.simibubi.create.foundation.blockEntity.behaviour.filtering.FilteringBehaviour;
@@ -111,24 +113,59 @@ public class PressurizingRecipe extends BasinRecipe implements IAssemblyRecipe {
 		if (filter == null)
 			return false;
 
-		// 在simibubi的设计中，配方无法得知过滤器的黑白名单模式，过滤器无法得知配方的完整产出
-		// 因此这段代码不是我不想改，而是我没招了
-		boolean filterTest = filter.test(recipe.getResultItem(basin.getLevel()
-				.registryAccess()));
-		if (recipe instanceof BasinRecipe) {
-			BasinRecipe basinRecipe = (BasinRecipe) recipe;
-			if (basinRecipe.getRollableResults()
-					.isEmpty()
-					&& !basinRecipe.getFluidResults()
-					.isEmpty())
-				filterTest = filter.test(basinRecipe.getFluidResults()
-						.get(0));
+		if (recipe instanceof ProcessingRecipe<?> processingRecipe) {
+			// 获取过滤器物品，通过 NBT 推测黑白名单模式
+			ItemStack filterItem = filter.getFilter();
+
+			// 判断是否为黑名单模式，并判断是否为属性过滤器，因为属性过滤器无法识别流体
+			boolean isWhitelist = true;
+			boolean isAttributeFilter = false;
+			if (AllItems.FILTER.isIn(filterItem)) {
+				if (filterItem.hasTag() && filterItem.getTag().getBoolean("Blacklist"))
+					isWhitelist = false;
+			} else if (AllItems.ATTRIBUTE_FILTER.isIn(filterItem)) {
+				isAttributeFilter = true;
+				if (filterItem.hasTag() && filterItem.getTag().getInt("WhitelistMode") == 2)
+					isWhitelist = false;
+			}
+
+			for (ItemStack stack: processingRecipe.getRollableResultsAsItemStacks()) {
+				boolean test = filter.test(stack);
+				// 白名单下匹配任意可接受物品
+				if (test && isWhitelist)
+					return apply(basin, recipe, be, true, step);
+				// 黑名单下拒绝任意需拒绝物品
+				if (!test && !isWhitelist)
+					return false;
+			}
+
+			// 属性过滤跳过流体检测
+			if (!isAttributeFilter) {
+				for (FluidStack stack: processingRecipe.getFluidResults()) {
+					boolean test = filter.test(stack);
+					// 同上
+					if (test && isWhitelist)
+						return apply(basin, recipe, be, true, step);
+
+					if (!test && !isWhitelist)
+						return  false;
+				}
+			}
+
+			if (isWhitelist) {
+				// 白名单下什么都没匹配到
+				return false;
+			} else {
+				// 黑名单匹配成功
+				return apply(basin, recipe, be, true, step);
+			}
+		} else {
+			// 非机械动力配方直接匹配
+			if (filter.test(recipe.getResultItem(basin.getLevel().registryAccess())))
+				return apply(basin, recipe, be, true, step);
+			else
+				return false;
 		}
-
-		if (!filterTest)
-			return false;
-
-		return apply(basin, recipe, be, true, step);
 	}
 
 	public static boolean apply(BasinBlockEntity basin, Recipe<?> recipe, VacuumChamberBlockEntity be, int step) {
