@@ -167,20 +167,20 @@ public class VibratingTableBlockEntity extends KineticBlockEntity {
 		if (inputInv.getStackInSlot(0).isEmpty())
 			return;
 
-		if (lastRecipe == null) {
+		if (lastRecipe == null && timer <= 0) {
 			RecipeWrapper inventoryIn = new RecipeWrapper(inputInv);
 			Optional<VibratingRecipe> assemblyRecipe = SequencedAssemblyRecipe.getRecipe(level, inventoryIn,
 					VintageRecipes.VIBRATING.getType(), VibratingRecipe.class);
 			if (assemblyRecipe.isPresent()) {
 				lastRecipe = assemblyRecipe.get();
 				timer = lastRecipe.getProcessingDuration() * 16;
-				if (timer == 0) timer = 1600;
+				if (timer == 0) timer = 160;
 				lastRecipeIsAssembly = true;
 			} else {
 				lastRecipeIsAssembly = false;
 				Optional<VibratingRecipe> recipe = VintageRecipes.VIBRATING.find(inventoryIn, level);
 				if (!recipe.isPresent()) {
-					timer = 1600;
+					timer = 160;
 				} else {
 					lastRecipe = recipe.get();
 					timer = lastRecipe.getProcessingDuration() * 16;
@@ -199,14 +199,6 @@ public class VibratingTableBlockEntity extends KineticBlockEntity {
 			if (timer <= 0) {
 				// 倒计时结束，执行配方，如果能继续配方则直接重置计时器
 				process();
-				RecipeWrapper inventoryIn = new RecipeWrapper(inputInv);
-				if (lastRecipe.matches(inventoryIn, level)) {
-					timer = lastRecipe.getProcessingDuration() * 16;
-					if (timer == 0) timer = 1600;
-				} else {
-					lastRecipe = null;
-					timer = 0;
-				}
 			}
 		} else {
 			// 防御性编程

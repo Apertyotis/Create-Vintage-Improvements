@@ -59,7 +59,7 @@ public class UnpackingCategory extends CreateRecipeCategory<CraftingRecipe> {
 	public List<Component> getTooltipStrings(CraftingRecipe recipe, IRecipeSlotsView recipeSlotsView, double mouseX, double mouseY) {
 		List<Component> tooltip = new ArrayList<>();
 		if (mouseX > 39 && mouseX < 73 && mouseY > 19 && mouseY < 57) {
-			int duration = 100;
+			int duration = 10;
 			tooltip.add(Component.translatable("vintageimprovements.jei.text.processing_duration", duration));
 		}
 		return tooltip;

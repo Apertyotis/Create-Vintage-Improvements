@@ -68,7 +68,7 @@ public class VibratingCategory extends CreateRecipeCategory<VibratingRecipe> {
 		List<Component> tooltip = new ArrayList<>();
 		if (mouseX > 39 && mouseX < 73 && mouseY > 19 && mouseY < 57) {
 			int duration = recipe.getProcessingDuration();
-			if (duration == 0) duration = 100;
+			if (duration == 0) duration = 10;
 			tooltip.add(Component.translatable("vintageimprovements.jei.text.processing_duration", duration));
 		}
 		return tooltip;

@@ -2,6 +2,8 @@ package com.negodya1.vintageimprovements;
 
 import com.negodya1.vintageimprovements.content.kinetics.curving_press.CurvingRecipe;
 import com.negodya1.vintageimprovements.content.kinetics.grinder.PolishingRecipe;
+import com.negodya1.vintageimprovements.content.kinetics.vibration.VibratingTableBlockEntity;
+import com.simibubi.create.AllRecipeTypes;
 import com.simibubi.create.content.equipment.sandPaper.SandPaperPolishingRecipe;
 import com.simibubi.create.foundation.utility.VecHelper;
 import mezz.jei.api.constants.RecipeTypes;
@@ -17,6 +19,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.*;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.common.crafting.ConditionalRecipe;
+import net.minecraftforge.common.crafting.IShapedRecipe;
 import net.minecraftforge.items.ItemHandlerHelper;
 import net.minecraft.world.level.Level;
 
@@ -55,8 +58,10 @@ public class VintageRecipesList {
     static void initUnpacking(MinecraftServer level) {
         List<CraftingRecipe> recipes = level.getRecipeManager().getAllRecipesFor(RecipeType.CRAFTING);
         for (CraftingRecipe recipe : recipes) {
-            if (recipe.getIngredients().size() > 1) continue;
-
+            if (recipe.getIngredients().size() != 1) continue;
+            if (recipe instanceof IShapedRecipe<?>) continue;
+            if (AllRecipeTypes.shouldIgnoreInAutomation(recipe)) continue;
+            if (!recipe.getIngredients().get(0).getItems()[0].is(VibratingTableBlockEntity.storageTag)) continue;
             unpacking.add(recipe);
         }
     }
