@@ -21,6 +21,8 @@ public class CentrifugeStructuralBlockEntity extends SmartBlockEntity {
 
     CentrifugeBlockEntity cbe;
 
+    int oldSignal;
+
     public CentrifugeStructuralBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
         cbe = null;
@@ -39,10 +41,14 @@ public class CentrifugeStructuralBlockEntity extends SmartBlockEntity {
             if (level.getBlockEntity(CentrifugeStructuralBlock.getMaster(level, getBlockPos(), getBlockState())) instanceof CentrifugeBlockEntity be) {
                 cbe = be;
             }
+            return;
         }
 
-        //sendData();
-        //setChanged();
+        if (oldSignal != getAnalogSignal()) {
+            oldSignal = getAnalogSignal();
+            sendData();
+            setChanged();
+        }
     }
 
     @Override
