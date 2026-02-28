@@ -32,6 +32,7 @@ import net.minecraft.world.Container;
 import net.minecraft.world.item.*;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.Recipe;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
@@ -76,11 +77,15 @@ public class CentrifugeBlockEntity extends KineticBlockEntity implements IHaveGo
 
 	private final CompoundTag nbtForAnim = new CompoundTag();
 
+	private boolean contentsChanged;
+
 	public CentrifugeBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
 		super(type, pos, state);
 
-		inputInv = new SmartInventory(9, this);
-		outputInv = new SmartInventory(9, this);
+		inputInv = new SmartInventory(9, this)
+				.whenContentsChanged(slot -> this.contentsChanged = true);
+		outputInv = new SmartInventory(9, this)
+				.whenContentsChanged(slot -> this.contentsChanged = true);
 		capability = LazyOptional.of(() -> new CentrifugeInventoryHandler(inputInv, outputInv));
 		basins = 0;
 		visualizedOutputItems = Collections.synchronizedList(new ArrayList<>());
@@ -119,8 +124,10 @@ public class CentrifugeBlockEntity extends KineticBlockEntity implements IHaveGo
 		behaviours.add(new DirectBeltInputBehaviour(this));
 		super.addBehaviours(behaviours);
 
-		inputTank = new SmartFluidTankBehaviour(SmartFluidTankBehaviour.INPUT, this, 2, 1000, true);
+		inputTank = new SmartFluidTankBehaviour(SmartFluidTankBehaviour.INPUT, this, 2, 1000, true)
+				.whenFluidUpdates(() -> this.contentsChanged = true);
 		outputTank = new SmartFluidTankBehaviour(SmartFluidTankBehaviour.OUTPUT, this, 2, 1000, true)
+				.whenFluidUpdates(() -> this.contentsChanged = true)
 				.forbidInsertion();
 		behaviours.add(inputTank);
 		behaviours.add(outputTank);
@@ -243,6 +250,21 @@ public class CentrifugeBlockEntity extends KineticBlockEntity implements IHaveGo
 
 		if (getBasins() < 4)
 			return;
+
+		// 仅必要时更新周围方块
+		if (redstoneApp && contentsChanged) {
+			BlockPos center = getBlockPos();
+			for (int dx = -1; dx <= 1; dx++) {
+				for (int dz = -1; dz <= 1; dz++) {
+					if (dx == 0 && dz == 0) continue;
+					BlockEntity be = level.getBlockEntity(center.offset(dx, 0, dz));
+					if (be instanceof CentrifugeStructuralBlockEntity cbe) {
+						cbe.notifyUpdate();
+					}
+				}
+			}
+			contentsChanged = false;
+		}
 
 		if (inputInv.isEmpty() && inputTank.isEmpty())
 			return;
